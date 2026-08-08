@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bellows AFS — Find a Place by Type</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #fff; --ink: #16232e; --muted: #667685;
+    --line: #dfe5ea; --accent: #1f4e79; --accent-ink: #fff;
+    --ok: #2e9e5b; --ok-bg: #e6f5ec; --none: #f0f2f4; --none-ink: #b3bcc4;
+    --chip: #eef2f6; --shadow: 0 1px 3px rgba(20,35,46,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1519; --card: #18222b; --ink: #e6edf2; --muted: #93a1ad;
+      --line: #263440; --accent: #4a8fd4; --accent-ink: #06121c;
+      --ok: #3fce7c; --ok-bg: #12331f; --none: #1c2830; --none-ink: #4a5964;
+      --chip: #21303b; --shadow: 0 1px 3px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header { background: var(--accent); color: var(--accent-ink); padding: 20px 16px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  header .wrap { padding: 0 16px; }
+  h1 { margin: 0; font-size: 22px; }
+  header p { margin: 6px 0 0; opacity: .85; font-size: 13px; }
+  main { padding: 20px 0 60px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; margin-bottom: 18px; }
+  .controls label { font-size: 13px; color: var(--muted); margin-right: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px; user-select: none;
+  }
+  .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  select { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 13px; }
+  .meta { color: var(--muted); font-size: 12px; margin: 4px 0 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden;
+  }
+  .card-head { display: flex; gap: 14px; padding: 14px 16px; align-items: flex-start; }
+  .thumb { width: 84px; height: 84px; border-radius: 8px; object-fit: cover; flex: none; background: var(--none); }
+  .card-title { font-size: 16px; font-weight: 600; margin: 0 0 3px; }
+  .card-sub { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); margin-right: 6px; }
+  .next { margin-top: 7px; font-size: 13px; }
+  .next b { color: var(--ok); }
+  .cal { padding: 0 16px 16px; }
+  .months { display: flex; flex-wrap: wrap; gap: 16px 24px; }
+  .month { margin-top: 12px; width: 300px; max-width: 100%; }
+  .month h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .dow { font-size: 10px; color: var(--muted); text-align: center; padding-bottom: 2px; }
+  .day {
+    aspect-ratio: 1; border-radius: 5px; background: var(--none); color: var(--none-ink);
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+    text-decoration: none; position: relative;
+  }
+  .day.avail { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+  a.day.avail:hover { outline: 2px solid var(--ok); }
+  .day.empty { background: transparent; }
+  .day .tip {
+    display: none; position: absolute; bottom: 115%; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 5px 8px; border-radius: 6px;
+    font-size: 11px; white-space: nowrap; z-index: 5; box-shadow: var(--shadow);
+  }
+  .day:hover .tip { display: block; }
+  .empty-state { color: var(--muted); padding: 40px 0; text-align: center; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 30px 16px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Bellows AFS — Find a Place by Type</h1>
+  <p>Search cabins, condos, and campsites by availability — then book on the official site. Unofficial tool.</p>
+</div></header>
+<main class="wrap">
+  <div class="controls">
+    <div>
+      <label>Show</label>
+      <span class="chips" id="cat-chips"></span>
+    </div>
+    <div>
+      <label for="nights">Length of stay</label>
+      <select id="nights"><option value="any">Any</option><option value="1">1 night</option><option value="2">2 nights</option></select>
+    </div>
+    <div>
+      <label for="sort">Sort</label>
+      <select id="sort"><option value="soonest">Soonest available</option><option value="name">Name</option><option value="price">Price</option></select>
+    </div>
+    <label style="margin-left:auto"><input type="checkbox" id="only-avail" checked> Only types with availability</label>
+  </div>
+  <div class="meta" id="meta"></div>
+  <div id="list"></div>
+</main>
+<footer class="wrap">
+  Availability is a periodic snapshot and may be out of date — always confirm on the
+  <a id="foot-link" href="#" target="_blank" rel="noopener">official Bellows booking site</a>.
+  This is an unofficial convenience tool, not affiliated with Bellows AFS or the DoD.
+</footer>
+
+<script>
+const BOOK = (arrive, depart) =>
+  `https://be.synxis.com/?adult=2&arrive=${arrive}&chain=35524&child=0&currency=USD&depart=${depart}&hotel=99189&level=hotel&locale=en-US&rooms=1`;
+document.getElementById('foot-link').href = BOOK('', '');
+
+const CATS = [
+  { key: 'cabin',    label: 'Beach Cabins', match: c => /^CAB/.test(c.code) && !/^CABC/.test(c.code) },
+  { key: 'condo',    label: 'Condos',       match: c => /^CABC/.test(c.code) },
+  { key: 'camper',   label: 'Camper Cabins',match: c => c.code === 'CC' || c.code === 'CFISH' },
+  { key: 'campsite', label: 'Campsites',    match: c => c.category === 'CAMPSITE' },
+];
+const catOf = c => (CATS.find(x => x.match(c)) || {}).key;
+
+const state = { cats: new Set(CATS.map(c => c.key)), nights: 'any', sort: 'soonest', onlyAvail: true };
+let ROOMS = [], AVAIL = {}, DATA = {};
+
+function fmt(iso) {
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+function addDays(iso, n) {
+  const [y,m,d] = iso.split('-').map(Number);
+  const dt = new Date(y, m-1, d+n);
+  return dt.toISOString().slice(0,10);
+}
+
+// For a room, return sorted list of {date, nights, inv, price} the current filter allows.
+function slots(code) {
+  const byDate = AVAIL[code] || {};
+  const out = [];
+  for (const [date, nmap] of Object.entries(byDate)) {
+    for (const [n, slot] of Object.entries(nmap)) {
+      if (state.nights !== 'any' && state.nights !== n) continue;
+      out.push({ date, nights: +n, inv: slot.i, price: slot.p });
+    }
+  }
+  out.sort((a,b) => a.date.localeCompare(b.date) || a.nights - b.nights);
+  return out;
+}
+// Best (cheapest/shortest) slot per date, for the calendar.
+function bestByDate(code) {
+  const m = {};
+  for (const s of slots(code)) {
+    const cur = m[s.date];
+    if (!cur || s.nights < cur.nights) m[s.date] = s;
+  }
+  return m;
+}
+
+function calendar(code) {
+  const best = bestByDate(code);
+  const dates = Object.keys(best).sort();
+  if (!dates.length) return '<div class="meta">No availability in the scanned window for this stay length.</div>';
+  const months = {};
+  for (const d of dates) months[d.slice(0,7)] = true;
+  let html = '<div class="cal"><div class="months">';
+  for (const ym of Object.keys(months).sort()) {
+    const [y, mo] = ym.split('-').map(Number);
+    const first = new Date(y, mo-1, 1), lead = first.getDay(), ndays = new Date(y, mo, 0).getDate();
+    html += `<div class="month"><h4>${first.toLocaleDateString('en-US',{month:'long',year:'numeric'})}</h4>`;
+    html += '<div class="grid">' + ['S','M','T','W','T','F','S'].map(d=>`<div class="dow">${d}</div>`).join('');
+    for (let i=0;i<lead;i++) html += '<div class="day empty"></div>';
+    for (let day=1; day<=ndays; day++) {
+      const iso = `${ym}-${String(day).padStart(2,'0')}`;
+      const s = best[iso];
+      if (s) {
+        const dep = addDays(iso, s.nights);
+        const tip = `$${s.price}/night · ${s.inv} left · ${s.nights} night${s.nights>1?'s':''}`;
+        html += `<a class="day avail" href="${BOOK(iso, dep)}" target="_blank" rel="noopener">${day}<span class="tip">${tip}</span></a>`;
+      } else {
+        html += `<div class="day">${day}</div>`;
+      }
+    }
+    html += '</div></div>';
+  }
+  return html + '</div></div>';
+}
+
+function render() {
+  const meta = document.getElementById('meta');
+  const scanned = DATA.scanned_at ? new Date(DATA.scanned_at).toLocaleString() : '—';
+  meta.textContent = `Data snapshot: ${scanned}. Prices shown per night, taxes included. ${DATA.start||''} → ${DATA.end||''}.`;
+
+  let rooms = ROOMS.filter(r => state.cats.has(catOf(r)));
+  const firstSlot = {}, minPrice = {};
+  for (const r of rooms) {
+    const s = slots(r.code);
+    firstSlot[r.code] = s.length ? s[0] : null;
+    minPrice[r.code] = s.reduce((m, x) => x.price != null && (m==null || x.price < m) ? x.price : m, null);
+  }
+  if (state.onlyAvail) rooms = rooms.filter(r => firstSlot[r.code]);
+
+  rooms.sort((a,b) => {
+    if (state.sort === 'name') return a.name.localeCompare(b.name);
+    if (state.sort === 'price') return (minPrice[a.code] ?? 1e9) - (minPrice[b.code] ?? 1e9);
+    const fa = firstSlot[a.code], fb = firstSlot[b.code];
+    if (!fa) return 1; if (!fb) return -1;
+    return fa.date.localeCompare(fb.date);
+  });
+
+  const list = document.getElementById('list');
+  if (!rooms.length) { list.innerHTML = '<div class="empty-state">No place types match these filters.</div>'; return; }
+
+  list.innerHTML = rooms.map(r => {
+    const cat = CATS.find(c => c.key === catOf(r));
+    const fs = firstSlot[r.code];
+    const cleanName = r.name.replace(/\s*\([^)]*\)\s*$/,'').replace(/\s*\(CAMPING\)\s*/,' ').trim();
+    const next = fs
+      ? `Next available: <b>${fmt(fs.date)}</b> ($${fs.price}/night, ${fs.nights} night${fs.nights>1?'s':''})`
+      : `<span style="color:var(--muted)">No availability in the scanned window.</span>`;
+    const img = r.images && r.images[0]
+      ? `<img class="thumb" src="${r.images[0]}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+      : `<div class="thumb"></div>`;
+    return `<div class="card">
+      <div class="card-head">
+        ${img}
+        <div>
+          <p class="card-title">${cleanName}</p>
+          <p class="card-sub">
+            <span class="badge">${cat ? cat.label : r.category || 'Place'}</span>
+            <span class="badge">Sleeps ${r.guest_limit ?? '?'}</span>
+            <span class="badge">${r.code}</span>
+          </p>
+          <div class="next">${next}</div>
+        </div>
+      </div>
+      ${calendar(r.code)}
+    </div>`;
+  }).join('');
+}
+
+function buildChips() {
+  const box = document.getElementById('cat-chips');
+  box.innerHTML = CATS.map(c => `<span class="chip on" data-k="${c.key}">${c.label}</span>`).join('');
+  box.querySelectorAll('.chip').forEach(el => el.onclick = () => {
+    const k = el.dataset.k;
+    if (state.cats.has(k)) state.cats.delete(k); else state.cats.add(k);
+    el.classList.toggle('on');
+    render();
+  });
+}
+
+async function boot() {
+  buildChips();
+  document.getElementById('nights').onchange = e => { state.nights = e.target.value; render(); };
+  document.getElementById('sort').onchange = e => { state.sort = e.target.value; render(); };
+  document.getElementById('only-avail').onchange = e => { state.onlyAvail = e.target.checked; render(); };
+  try {
+    const [rooms, avail] = await Promise.all([
+      fetch('data/rooms.json').then(r => r.json()),
+      fetch('data/availability.json').then(r => r.json()),
+    ]);
+    ROOMS = rooms; DATA = avail; AVAIL = avail.rooms || {};
+    render();
+  } catch (e) {
+    document.getElementById('list').innerHTML =
+      '<div class="empty-state">Could not load availability data.<br>Run the scanner to generate <code>data/*.json</code>.</div>';
+  }
+}
+boot();
+</script>
+</body>
+</html>
